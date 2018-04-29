@@ -1,0 +1,3 @@
+- Implement libvirt libraries (libvirt/libvirt.h), instead of 'popenCmd'.
+- Run as daemon
+- Add time based delay after each button press, instead of incremental value. See line 67, 98.
