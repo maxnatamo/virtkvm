@@ -11,7 +11,9 @@ clean:
 
 install:
 	cp -f virtkvm /usr/local/bin
+	cp -f etc/virtkvm.service /etc/systemd/system/
 	chmod 755 /usr/local/bin/virtkvm
 
 uninstall:
 	rm -f /usr/local/bin/virtkvm
+	rm -f /etc/systemd/system/virtkvm.service

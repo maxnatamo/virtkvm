@@ -1,0 +1,8 @@
+[Unit]
+Description=Virtual KVM
+
+[Service]
+ExecStart=/usr/local/bin/virtkvm --daemon
+
+[Install]
+WantedBy=multi-user.target

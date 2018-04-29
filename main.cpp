@@ -63,9 +63,9 @@ ToggleDevices ( )
 }
 
 int
-main()
+main(int argc, char *argv[])
 {
-	int i, size = 32;
+	int i = 0, size = 32;
 	char mode[] = { '8', 'N', '1', '\0' };
 	unsigned char buf[size];
 
@@ -77,8 +77,12 @@ main()
 		return 1;
 	}
 	if ( popenCmd ( "sudo virsh list --all | grep " + vmName ).find ( "shut off" ) != std::string::npos ) {
-		std::cout << "[*] ERROR: VM \'" + vmName + "\' is not running.";
-		return 1;
+		for(int i = 0; i < argc; i++) {
+			if(argv[i] == "--daemonize") {
+				std::cout << "[*] ERROR: VM \'" + vmName + "\' is not running.";
+				return 1;
+			}
+		}
 	}
 
 	clearScreen();
