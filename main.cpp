@@ -11,6 +11,7 @@
 void
 CreateXMLFiles(void)
 {
+	// Create cache directory and output to /dev/null, just in case it already exists.
 	system( ("mkdir " + cacheDir + " -p > /dev/null 2>&1").c_str() );
 	for(int i = 0; i < devices.size(); i++)
 	{
@@ -62,6 +63,17 @@ ToggleDevices ( )
 	}
 }
 
+// Returns true if the VM is running.
+bool
+IsVMRunning()
+{
+	if ( popenCmd ( "sudo virsh list --all | grep " + vmName ).find ( "shut off" ) != std::string::npos ) {
+		return false;
+	} else {
+		return true;
+	}
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -70,16 +82,27 @@ main(int argc, char *argv[])
 	unsigned char buf[size];
 
 	CreateXMLFiles();
-
 	if(RS232_OpenComport(port, baudRate, mode))
 	{
-		std::cout << "Could not access serial port!\nDid you run as root?" << std::endl;
+		std::cout << "[*] ERROR: Could not access serial port!\nDid you run as root? Do you have other instances open?" << std::endl;
 		return 1;
 	}
-	if ( popenCmd ( "sudo virsh list --all | grep " + vmName ).find ( "shut off" ) != std::string::npos ) {
-		for(int i = 0; i < argc; i++) {
-			if(argv[i] == "--daemonize") {
+
+	if(argc == 2)
+	{
+		std::string arg = std::string( argv[1] );
+		if(arg != "--daemonize")
+		{
+			if ( !IsVMRunning() ) {
 				std::cout << "[*] ERROR: VM \'" + vmName + "\' is not running.";
+				return 1;
+			}
+
+			if(arg == "--toggle") {
+				ToggleDevices();
+				return 0;
+			} else {
+				std::cout << "[*] ERROR: '" << arg << "' not understood!" << std::endl;
 				return 1;
 			}
 		}
