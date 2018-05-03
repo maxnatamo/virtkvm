@@ -1,11 +1,18 @@
+#include <stdlib.h>
 #include <iostream>
 #include <string>
 #include <cstdlib>
 #include <fstream>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "rs232.h"
 #include "misc.h"
 #include "config.h"
+
+#define PORT 38808
+#define BUFLEN 16
 
 // Create .xml for libvirt.
 void
@@ -68,45 +75,92 @@ main(int argc, char *argv[])
 	int i = 0, size = 32;
 	char mode[] = { '8', 'N', '1', '\0' };
 	unsigned char buf[size];
+	unsigned char ipaddr[] = {0,0,0,0};  // The address to listen on
 
 	CreateXMLFiles();
 
-	if(RS232_OpenComport(port, baudRate, mode))
-	{
-		std::cout << "Could not access serial port!\nDid you run as root?" << std::endl;
-		return 1;
-	}
-	if ( popenCmd ( "sudo virsh list --all | grep " + vmName ).find ( "shut off" ) != std::string::npos ) {
-		for(int i = 0; i < argc; i++) {
-			if(argv[i] == "--daemonize") {
-				std::cout << "[*] ERROR: VM \'" + vmName + "\' is not running.";
-				return 1;
-			}
-		}
-	}
+//	if(RS232_OpenComport(port, baudRate, mode))
+//	{
+//		std::cout << "Could not access serial port!\nDid you run as root?" << std::endl;
+//		return 1;
+//	}
+//	if ( popenCmd ( "sudo virsh list --all | grep " + vmName ).find ( "shut off" ) != std::string::npos ) {
+//		for(int i = 0; i < argc; i++) {
+//			if(argv[i] == "--daemonize") {
+//				std::cout << "[*] ERROR: VM \'" + vmName + "\' is not running.";
+//				return 1;
+//			}
+//		}
+//	}
 
-	clearScreen();
-	std::cout << "VIRTUAL KVM" << std::endl;
-	
-	while(1)
-	{
-		int n = RS232_PollComport(port, buf, size - 1);
-		if (n > 0) {
-			buf[n] = 0;
-			for(int i = 0; i < n; i++) {
-				if(buf[i] < 32) {
-					buf[i] = '.';
-				}
-			}
-			i++;
-		}
-		if (i > 20) {
-			clearScreen();
-			std::cout << "VIRTUAL KVM" << std::endl;
+    // TODO: Listen for argument here to specify IP address or network device to bind to, so only your VM can toggle
+    // the KVM and not any rando on your WiFi
 
-			ToggleDevices();
-			i = 0;
-		}
-	}
-	return 0;
+    int socket_info;
+    struct sockaddr_in server;
+    socklen_t servlen = sizeof(server);
+    int recv_len;
+    char msg[BUFLEN];
+
+    try {
+        if ((socket_info = socket(AF_INET, SOCK_DGRAM, 0)) == 0) {
+            perror("Socket failed");
+            throw;
+        }
+
+        server.sin_addr.s_addr = htonl((int)(*ipaddr));
+        server.sin_port = htons(PORT);
+        server.sin_family = AF_INET;
+
+        if (bind(socket_info, (struct sockaddr*)&server, sizeof(server)) == -1) {
+            perror("Bind error");
+            throw;
+        }
+
+        while(1) {
+            if ((recv_len = recvfrom(socket_info, msg, BUFLEN, 0, (struct sockaddr*)&server, &servlen)) == -1) {
+                perror("Error receiving");
+                throw;
+            }
+
+            if (strcmp(msg, "toggle") == 0) {
+                clearScreen();
+                std::cout << "VIRTUAL KVM" << std::endl;
+
+                ToggleDevices();
+            }
+
+        }
+
+    } catch (char * err) {
+
+    }
+    //----------------------------------------
+
+    return 0;
+
+//	clearScreen();
+//	std::cout << "VIRTUAL KVM" << std::endl;
+//
+//	while(1)
+//	{
+//		int n = RS232_PollComport(port, buf, size - 1);
+//		if (n > 0) {
+//			buf[n] = 0;
+//			for(int i = 0; i < n; i++) {
+//				if(buf[i] < 32) {
+//					buf[i] = '.';
+//				}
+//			}
+//			i++;
+//		}
+//		if (i > 20) {
+//			clearScreen();
+//			std::cout << "VIRTUAL KVM" << std::endl;
+//
+//			ToggleDevices();
+//			i = 0;
+//		}
+//	}
+//	return 0;
 }
