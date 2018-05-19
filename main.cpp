@@ -74,7 +74,7 @@ main(int argc, char *argv[])
 	int i = 0, size = 32;
 	char mode[] = { '8', 'N', '1', '\0' };
 	unsigned char buf[size];
-	unsigned char ipaddr[] = {127,0,0,1};     // The address to listen on
+	unsigned char ipaddr[] = {0,0,0,0};     // The address to listen on
     unsigned short port = 5555;            // The port to listen on
 
 
