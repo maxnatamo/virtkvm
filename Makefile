@@ -20,6 +20,8 @@ install:
 		export PORT=${PORT}; \
 		export IP=${IP}; \
 		bash add_args_to_service.sh > /etc/systemd/system/virtkvm.service; \
+		cp -f virtkvm_client.py /usr/local/bin; \
+		chmod 755 /usr/local/bin/virtkvm_client.py; \
 	else \
 		cp -f etc/virtkvm.service /etc/systemd/system/; \
 	fi
