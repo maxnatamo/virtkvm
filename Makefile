@@ -6,13 +6,25 @@ CFLAGS=-I. -w
 virtkvm:
 	$(CC) main.cpp rs232.c misc.cpp -o virtkvm $(CFLAGS)
 
+hotkey:
+	$(CC) main.cpp rs232.c misc.cpp -o virtkvm -Dwatch_port $(CFLAGS)
+
 clean:
 	rm virtkvm -f
 
 install:
 	cp -f virtkvm /usr/local/bin
-	cp -f etc/virtkvm.service /etc/systemd/system/
 	chmod 755 /usr/local/bin/virtkvm
+	if [ ${IP} ]; then \
+		if [ ! ${PORT} ]; then "PORT not defined"; exit; fi; \
+		export PORT=${PORT}; \
+		export IP=${IP}; \
+		bash add_args_to_service.sh > /etc/systemd/system/virtkvm.service; \
+		cp -f virtkvm_client.py /usr/local/bin; \
+		chmod 755 /usr/local/bin/virtkvm_client.py; \
+	else \
+		cp -f etc/virtkvm.service /etc/systemd/system/; \
+	fi
 
 uninstall:
 	rm -f /usr/local/bin/virtkvm

@@ -1,11 +1,17 @@
+#include <stdlib.h>
 #include <iostream>
 #include <string>
 #include <cstdlib>
 #include <fstream>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "rs232.h"
 #include "misc.h"
 #include "config.h"
+
+#define BUFLEN 16
 
 // Create .xml for libvirt.
 void
@@ -80,14 +86,93 @@ main(int argc, char *argv[])
 	int i = 0, size = 32;
 	char mode[] = { '8', 'N', '1', '\0' };
 	unsigned char buf[size];
+	unsigned char ipaddr[] = {0,0,0,0};     // The address to listen on
+    unsigned short port = 5555;            // The port to listen on
+
+
+    if ( popenCmd ( "sudo virsh list --all | grep " + vmName ).find ( "shut off" ) != std::string::npos ) {
+        for(int i = 0; i < argc; i++) {
+            if(argv[i] == "--daemonize") {
+                std::cout << "[*] ERROR: VM \'" + vmName + "\' is not running.";
+                return 1;
+            }
+        }
+    }
+    clearScreen();
+    std::cout << "VIRTUAL KVM" << std::endl;
 
 	CreateXMLFiles();
+#ifdef watch_port
+    // Commands to run if you want the virtkvm to respond to a keyboard hotkey
+    int socket_info;
+    struct sockaddr_in server;
+    socklen_t servlen = sizeof(server);
+    int recv_len;
+    char msg[BUFLEN];
+
+    // Get the correct IP address and port from the arguments
+    for(int i = 0; i < 3; i++) {
+        // Make a test string and put the first 2 characters of the argument in it
+        char teststr[3];
+        teststr[0] = argv[i][0];
+        teststr[1] = argv[i][1];
+        teststr[2] = 0;
+
+        if(strcmp(teststr, "-p") == 0) {
+            // If arg is a port, skip ahead to the actual number and parse it
+            port = atoi((char*)(&argv[i][3]));
+        } else if (strcmp(teststr, "-i") == 0) {
+            // If arg is an ip address, split the octets into tokens and parse them individually
+            char *octets = strtok((char*)(&argv[i][3]), ".");
+            int j = 0;
+            while (octets != NULL) {
+                ipaddr[j++] = atoi(octets);
+                octets = strtok(NULL, ".");
+            }
+        }
+    }
+
+    try {
+        if ((socket_info = socket(AF_INET, SOCK_DGRAM, 0)) == 0) {
+            perror("Socket failed");
+            throw;
+        }
+
+        server.sin_addr.s_addr = htonl((int)(*ipaddr));
+        server.sin_port = htons(port);
+        server.sin_family = AF_INET;
+
+        if (bind(socket_info, (struct sockaddr*)&server, sizeof(server)) == -1) {
+            perror("Bind error");
+            throw;
+        }
+
+        while(1) {
+            if ((recv_len = recvfrom(socket_info, msg, BUFLEN, 0, (struct sockaddr*)&server, &servlen)) == -1) {
+                perror("Error receiving");
+                throw;
+            }
+
+            if (strcmp(msg, "toggle") == 0) {
+                clearScreen();
+                std::cout << "VIRTUAL KVM" << std::endl;
+
+                ToggleDevices();
+            }
+
+        }
+
+    } catch (char * err) { }
+
+    return 0;
+
+#else
 	if(RS232_OpenComport(port, baudRate, mode))
 	{
 		std::cout << "[*] ERROR: Could not access serial port!\nDid you run as root? Do you have other instances open?" << std::endl;
 		return 1;
 	}
-
+  
 	if(argc == 2)
 	{
 		std::string arg = std::string( argv[1] );
@@ -108,9 +193,6 @@ main(int argc, char *argv[])
 		}
 	}
 
-	clearScreen();
-	std::cout << "VIRTUAL KVM" << std::endl;
-	
 	while(1)
 	{
 		int n = RS232_PollComport(port, buf, size - 1);
@@ -132,4 +214,5 @@ main(int argc, char *argv[])
 		}
 	}
 	return 0;
+#endif
 }
