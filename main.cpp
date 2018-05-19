@@ -11,7 +11,6 @@
 #include "misc.h"
 #include "config.h"
 
-#define PORT 57831
 #define BUFLEN 16
 
 // Create .xml for libvirt.
@@ -75,7 +74,20 @@ main(int argc, char *argv[])
 	int i = 0, size = 32;
 	char mode[] = { '8', 'N', '1', '\0' };
 	unsigned char buf[size];
-	unsigned char ipaddr[] = {0,0,0,0};  // The address to listen on
+	unsigned char ipaddr[] = {127,0,0,1};     // The address to listen on
+    unsigned short port = 5555;            // The port to listen on
+
+
+    if ( popenCmd ( "sudo virsh list --all | grep " + vmName ).find ( "shut off" ) != std::string::npos ) {
+        for(int i = 0; i < argc; i++) {
+            if(argv[i] == "--daemonize") {
+                std::cout << "[*] ERROR: VM \'" + vmName + "\' is not running.";
+                return 1;
+            }
+        }
+    }
+    clearScreen();
+    std::cout << "VIRTUAL KVM" << std::endl;
 
 	CreateXMLFiles();
 
@@ -83,11 +95,34 @@ main(int argc, char *argv[])
     // the KVM and not any rando on your WiFi
 
 #ifdef watch_port
+    // Commands to run if you want the virtkvm to respond to a keyboard hotkey
     int socket_info;
     struct sockaddr_in server;
     socklen_t servlen = sizeof(server);
     int recv_len;
     char msg[BUFLEN];
+
+    // Get the correct IP address and port from the arguments
+    for(int i = 0; i < 3; i++) {
+        // Make a test string and put the first 2 characters of the argument in it
+        char teststr[3];
+        teststr[0] = argv[i][0];
+        teststr[1] = argv[i][1];
+        teststr[2] = 0;
+
+        if(strcmp(teststr, "-p") == 0) {
+            // If arg is a port, skip ahead to the actual number and parse it
+            port = atoi((char*)(&argv[i][3]));
+        } else if (strcmp(teststr, "-i") == 0) {
+            // If arg is an ip address, split the octets into tokens and parse them individually
+            char *octets = strtok((char*)(&argv[i][3]), ".");
+            int j = 0;
+            while (octets != NULL) {
+                ipaddr[j++] = atoi(octets);
+                octets = strtok(NULL, ".");
+            }
+        }
+    }
 
     try {
         if ((socket_info = socket(AF_INET, SOCK_DGRAM, 0)) == 0) {
@@ -96,7 +131,7 @@ main(int argc, char *argv[])
         }
 
         server.sin_addr.s_addr = htonl((int)(*ipaddr));
-        server.sin_port = htons(PORT);
+        server.sin_port = htons(port);
         server.sin_family = AF_INET;
 
         if (bind(socket_info, (struct sockaddr*)&server, sizeof(server)) == -1) {
@@ -129,16 +164,6 @@ main(int argc, char *argv[])
 		std::cout << "Could not access serial port!\nDid you run as root?" << std::endl;
 		return 1;
 	}
-	if ( popenCmd ( "sudo virsh list --all | grep " + vmName ).find ( "shut off" ) != std::string::npos ) {
-		for(int i = 0; i < argc; i++) {
-			if(argv[i] == "--daemonize") {
-				std::cout << "[*] ERROR: VM \'" + vmName + "\' is not running.";
-				return 1;
-			}
-		}
-	}
-	clearScreen();
-	std::cout << "VIRTUAL KVM" << std::endl;
 
 	while(1)
 	{
