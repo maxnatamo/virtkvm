@@ -6,6 +6,9 @@ CFLAGS=-I. -w
 virtkvm:
 	$(CC) main.cpp rs232.c misc.cpp -o virtkvm $(CFLAGS)
 
+hotkey:
+	$(CC) main.cpp rs232.c misc.cpp -o virtkvm -Dwatch_port $(CFLAGS)
+
 clean:
 	rm virtkvm -f
 

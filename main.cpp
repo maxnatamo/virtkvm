@@ -11,7 +11,7 @@
 #include "misc.h"
 #include "config.h"
 
-#define PORT 38808
+#define PORT 57831
 #define BUFLEN 16
 
 // Create .xml for libvirt.
@@ -79,23 +79,10 @@ main(int argc, char *argv[])
 
 	CreateXMLFiles();
 
-//	if(RS232_OpenComport(port, baudRate, mode))
-//	{
-//		std::cout << "Could not access serial port!\nDid you run as root?" << std::endl;
-//		return 1;
-//	}
-//	if ( popenCmd ( "sudo virsh list --all | grep " + vmName ).find ( "shut off" ) != std::string::npos ) {
-//		for(int i = 0; i < argc; i++) {
-//			if(argv[i] == "--daemonize") {
-//				std::cout << "[*] ERROR: VM \'" + vmName + "\' is not running.";
-//				return 1;
-//			}
-//		}
-//	}
-
     // TODO: Listen for argument here to specify IP address or network device to bind to, so only your VM can toggle
     // the KVM and not any rando on your WiFi
 
+#ifdef watch_port
     int socket_info;
     struct sockaddr_in server;
     socklen_t servlen = sizeof(server);
@@ -132,35 +119,47 @@ main(int argc, char *argv[])
 
         }
 
-    } catch (char * err) {
-
-    }
-    //----------------------------------------
+    } catch (char * err) { }
 
     return 0;
 
-//	clearScreen();
-//	std::cout << "VIRTUAL KVM" << std::endl;
-//
-//	while(1)
-//	{
-//		int n = RS232_PollComport(port, buf, size - 1);
-//		if (n > 0) {
-//			buf[n] = 0;
-//			for(int i = 0; i < n; i++) {
-//				if(buf[i] < 32) {
-//					buf[i] = '.';
-//				}
-//			}
-//			i++;
-//		}
-//		if (i > 20) {
-//			clearScreen();
-//			std::cout << "VIRTUAL KVM" << std::endl;
-//
-//			ToggleDevices();
-//			i = 0;
-//		}
-//	}
-//	return 0;
+#else
+	if(RS232_OpenComport(port, baudRate, mode))
+	{
+		std::cout << "Could not access serial port!\nDid you run as root?" << std::endl;
+		return 1;
+	}
+	if ( popenCmd ( "sudo virsh list --all | grep " + vmName ).find ( "shut off" ) != std::string::npos ) {
+		for(int i = 0; i < argc; i++) {
+			if(argv[i] == "--daemonize") {
+				std::cout << "[*] ERROR: VM \'" + vmName + "\' is not running.";
+				return 1;
+			}
+		}
+	}
+	clearScreen();
+	std::cout << "VIRTUAL KVM" << std::endl;
+
+	while(1)
+	{
+		int n = RS232_PollComport(port, buf, size - 1);
+		if (n > 0) {
+			buf[n] = 0;
+			for(int i = 0; i < n; i++) {
+				if(buf[i] < 32) {
+					buf[i] = '.';
+				}
+			}
+			i++;
+		}
+		if (i > 20) {
+			clearScreen();
+			std::cout << "VIRTUAL KVM" << std::endl;
+
+			ToggleDevices();
+			i = 0;
+		}
+	}
+	return 0;
+#endif
 }
